@@ -104,6 +104,9 @@ public class GeneratorProcessor extends AbstractProcessor {
             builder.addField(basicColumnField);
 
             builder.addMethod(insertAllColumns(pkg, clz, columnNameList));
+            builder.addMethod(insertSelectiveColumns(pkg,clz,columnNameList));
+            builder.addMethod(updateAllColumns(pkg,clz,columnNameList));
+            builder.addMethod(updateSelectiveColumns(pkg,clz,columnNameList));
 
             JavaFile javaFile = JavaFile.builder(pkg, builder.build())
                     .build();
@@ -137,6 +140,58 @@ public class GeneratorProcessor extends AbstractProcessor {
         return builder.build();
     }
 
+    private MethodSpec insertSelectiveColumns(String typePkg, String typeClz, List<String> columnNameList) throws Exception {
+        MethodSpec.Builder builder = MethodSpec.methodBuilder("insertSelectiveColumns");
+        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.insert", "InsertDSL"), ClassName.get(typePkg, typeClz));
+
+        builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addParameter(typeName, "dsl")
+                .addParameter(ClassName.get(typePkg,typeClz), "record")
+                .returns(typeName);
+
+        for (String columnName : columnNameList) {
+            builder.addStatement("dsl.map($N).toPropertyWhenPresent(\"$N\",record::get$N)", columnName, columnName,captureName(columnName));
+        }
+        builder.addStatement("return dsl");
+
+        return builder.build();
+    }
+
+
+    private MethodSpec updateAllColumns(String typePkg, String typeClz, List<String> columnNameList) throws Exception {
+        MethodSpec.Builder builder = MethodSpec.methodBuilder("insertSelectiveColumns");
+        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.insert", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
+
+        builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addParameter(typeName, "dsl")
+                .addParameter(ClassName.get(typePkg,typeClz), "record")
+                .returns(typeName);
+
+        for (String columnName : columnNameList) {
+            builder.addStatement("dsl.set($N).equalTo(record::get$N)", columnName, captureName(columnName));
+        }
+        builder.addStatement("return dsl");
+
+        return builder.build();
+    }
+
+    private MethodSpec updateSelectiveColumns(String typePkg, String typeClz, List<String> columnNameList) throws Exception {
+        MethodSpec.Builder builder = MethodSpec.methodBuilder("updateSelectiveColumns");
+        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.insert", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
+
+        builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addParameter(typeName, "dsl")
+                .addParameter(ClassName.get(typePkg,typeClz), "record")
+                .returns(typeName);
+
+        for (String columnName : columnNameList) {
+            builder.addStatement("dsl.set($N).equalToWhenPresent(record::get$N)", columnName, captureName(columnName));
+        }
+        builder.addStatement("return dsl");
+
+        return builder.build();
+    }
+
     private <T extends Symbol> List<T> getMember(Class<T> type, ElementKind kind, Symbol classSymbol) {
         List<T> results = new ArrayList<>();
         if (classSymbol.type == null || classSymbol.type.isPrimitiveOrVoid()) {
@@ -159,6 +214,12 @@ public class GeneratorProcessor extends AbstractProcessor {
         Collections.reverse(results);
 
         return results;
+    }
+
+    private String captureName(String name) {
+        char[] cs = name.toCharArray();
+        cs[0] -= 32;
+        return String.valueOf(cs);
     }
 
     private static void generateToAnnotations(JavaFile javaFile, String path) throws IOException {
