@@ -93,7 +93,13 @@ public class GeneratorProcessor extends AbstractProcessor {
                 String type = symbol.type.toString();
                 String typePkg = type.substring(0, type.lastIndexOf("."));
                 String typeClz = type.substring(type.lastIndexOf(".") + 1);
-                TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql", "SqlColumn"), ClassName.get(typePkg, typeClz));
+                TypeName columnTypeName;
+                if(type.equals("Date")) {
+                    columnTypeName=ClassName.get("java.util","Date");
+                }else {
+                    columnTypeName=ClassName.bestGuess(typeClz);
+                }
+                TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql", "SqlColumn"), columnTypeName);
                 FieldSpec columnField = FieldSpec.builder(typeName, symbol.name.toString(), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL).initializer(String.format("SUPPORT.column(\"%s\")", symbol.name.toString())).build();
                 builder.addField(columnField);
                 columnNameList.add(symbol.name.toString());
@@ -160,7 +166,7 @@ public class GeneratorProcessor extends AbstractProcessor {
 
     private MethodSpec updateAllColumns(String typePkg, String typeClz, List<String> columnNameList) throws Exception {
         MethodSpec.Builder builder = MethodSpec.methodBuilder("insertSelectiveColumns");
-        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.insert", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
+        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.update", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
 
         builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .addParameter(typeName, "dsl")
@@ -177,7 +183,7 @@ public class GeneratorProcessor extends AbstractProcessor {
 
     private MethodSpec updateSelectiveColumns(String typePkg, String typeClz, List<String> columnNameList) throws Exception {
         MethodSpec.Builder builder = MethodSpec.methodBuilder("updateSelectiveColumns");
-        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.insert", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
+        TypeName typeName = ParameterizedTypeName.get(ClassName.get("org.mybatis.dynamic.sql.update", "UpdateDSL"), ClassName.get("org.mybatis.dynamic.sql.update", "UpdateModel"));
 
         builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .addParameter(typeName, "dsl")
